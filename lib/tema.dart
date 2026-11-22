@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 
 const azul = Color(0xFF1565C0);
 const verde = Color(0xFF2E7D32);

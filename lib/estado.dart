@@ -56,10 +56,10 @@ class AppState extends ChangeNotifier {
     final hoje = DateTime.now();
 
     usuario = Usuario(nome: 'Ana Souza', cargo: 'Analista de Compras');
-    prata = 84;
+    prata = 86;
     ouro = 2;
-    recordeBase = 12;
-    metasCumpridas = 47;
+    recordeBase = 15;
+    metasCumpridas = 37;
     ultimoDia = chaveDia(hoje);
     bonusDias = [];
 
@@ -131,6 +131,53 @@ class AppState extends ChangeNotifier {
         inscrito: true,
         concluido: true,
         nota: 10,
+        concluidoEm: DateTime(2026, 9, 15),
+      ),
+      Treinamento(
+        nome: 'LGPD',
+        horas: 4,
+        obrigatorio: true,
+        modulos: criarModulos([
+          'Introdução à LGPD',
+          'Dados pessoais',
+          'Direitos do titular',
+          'Avaliação final',
+        ], 4),
+        perguntas: perguntasPadrao(),
+        inscrito: true,
+        concluido: true,
+        nota: 9,
+        concluidoEm: DateTime(2026, 8, 20),
+      ),
+      Treinamento(
+        nome: 'Segurança da informação',
+        horas: 4,
+        modulos: criarModulos([
+          'Senhas',
+          'Phishing',
+          'Dispositivos',
+          'Avaliação final',
+        ], 4),
+        perguntas: perguntasPadrao(),
+        inscrito: true,
+        concluido: true,
+        nota: 8.5,
+        concluidoEm: DateTime(2026, 10, 8),
+      ),
+      Treinamento(
+        nome: 'Atendimento ao cliente',
+        horas: 4,
+        modulos: criarModulos([
+          'Postura',
+          'Comunicação',
+          'Casos práticos',
+          'Avaliação final',
+        ], 4),
+        perguntas: perguntasPadrao(),
+        inscrito: true,
+        concluido: true,
+        nota: 10,
+        concluidoEm: DateTime(2026, 6, 12),
       ),
       Treinamento(
         nome: 'Excel intermediário',
@@ -188,7 +235,8 @@ class AppState extends ChangeNotifier {
   }
 
   List<Modulo> modulosNumerados(int total, int feitos) {
-    final nomes = List.generate(total, (i) => 'Módulo ${i + 1}');
+    final nomes = List.generate(
+        total, (i) => i == total - 1 ? 'Avaliação final' : 'Módulo ${i + 1}');
     return criarModulos(nomes, feitos);
   }
 
@@ -318,18 +366,28 @@ class AppState extends ChangeNotifier {
     } else if (diasCompletos.contains(hoje)) {
       diasCompletos.remove(hoje);
       if (bonusDias.contains(hoje)) {
-        prata -= 5;
+        prata = max(0, prata - 5);
         bonusDias.remove(hoje);
       }
     }
   }
 
-  void alternarMeta(Meta meta) {
+  // devolve o texto do erro, ou null se deu certo
+  String? alternarMeta(Meta meta) {
+    if (meta.feita) {
+      // desmarcar tira a prata da meta (e o bônus do dia, se ele foi dado)
+      final custo = bonusHoje ? 6 : 1;
+      if (prata < custo) {
+        return 'Você já usou essa prata em um resgate. Não dá para desmarcar agora.';
+      }
+    }
+
     meta.feita = !meta.feita;
     prata += meta.feita ? 1 : -1;
     metasCumpridas += meta.feita ? 1 : -1;
     atualizarOfensiva();
     mudou();
+    return null;
   }
 
   // devolve o texto do erro, ou null se deu certo
@@ -378,13 +436,18 @@ class AppState extends ChangeNotifier {
 
   void alternarModulo(Treinamento t, int indice) {
     if (t.concluido) return;
+    if (indice == t.modulos.length - 1) return; // avaliação final
     t.modulos[indice].feito = !t.modulos[indice].feito;
     mudou();
   }
 
   void concluir(Treinamento t, double nota) {
+    for (final m in t.modulos) {
+      m.feito = true; // a avaliação final foi feita
+    }
     t.concluido = true;
     t.nota = nota;
+    t.concluidoEm = DateTime.now();
     ouro += 1;
     mudou();
   }

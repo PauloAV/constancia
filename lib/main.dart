@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'estado.dart';
 import 'tema.dart';
 import 'telas.dart';
@@ -53,7 +53,15 @@ class _HomePageState extends State<HomePage> {
         actions: [
           if (aba == 0)
             IconButton(
-              icon: const Icon(Icons.account_circle),
+              icon: CircleAvatar(
+                radius: 14,
+                backgroundColor: Colors.white,
+                child: Text(
+                  estado.usuario.nome[0],
+                  style: const TextStyle(
+                      color: azul, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
               onPressed: () => Navigator.pushNamed(context, '/perfil'),
             ),
         ],

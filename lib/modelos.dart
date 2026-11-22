@@ -79,6 +79,7 @@ class Treinamento {
   bool inscrito;
   bool concluido;
   double? nota;
+  DateTime? concluidoEm;
 
   Treinamento({
     required this.nome,
@@ -90,11 +91,20 @@ class Treinamento {
     this.inscrito = false,
     this.concluido = false,
     this.nota,
+    this.concluidoEm,
   });
 
   int get modulosFeitos => modulos.where((m) => m.feito).length;
 
-  bool get todosFeitos => modulosFeitos == modulos.length;
+  // o último módulo é a própria avaliação final: só os anteriores liberam o botão
+  bool get liberaAvaliacao =>
+      modulos.take(modulos.length - 1).every((m) => m.feito);
+
+  // "NR-12: Segurança em máquinas" vira "NR-12" e "Segurança em máquinas"
+  String get tituloCurto => nome.contains(': ') ? nome.split(': ').first : nome;
+
+  String? get subtituloNome =>
+      nome.contains(': ') ? nome.substring(nome.indexOf(': ') + 2) : null;
 
   int get porcentagem => (modulosFeitos / modulos.length * 100).round();
 
@@ -122,6 +132,7 @@ class Treinamento {
         'inscrito': inscrito,
         'concluido': concluido,
         'nota': nota,
+        'concluidoEm': concluidoEm?.toIso8601String(),
       };
 
   factory Treinamento.fromJson(Map<String, dynamic> json) {
@@ -136,6 +147,9 @@ class Treinamento {
       inscrito: json['inscrito'],
       concluido: json['concluido'],
       nota: (json['nota'] as num?)?.toDouble(),
+      concluidoEm: json['concluidoEm'] == null
+          ? null
+          : DateTime.parse(json['concluidoEm']),
     );
   }
 }

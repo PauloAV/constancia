@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+import 'package:material_ui/material_ui.dart';
 import 'estado.dart';
 import 'modelos.dart';
 import 'tema.dart';
@@ -8,6 +8,14 @@ const tituloSecao = TextStyle(fontSize: 16, fontWeight: FontWeight.w500);
 void mostrarAviso(BuildContext context, String texto) {
   ScaffoldMessenger.of(context).hideCurrentSnackBar();
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
+}
+
+String mesAno(DateTime d) {
+  const meses = [
+    'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
+    'jul', 'ago', 'set', 'out', 'nov', 'dez'
+  ];
+  return '${meses[d.month - 1]}/${d.year}';
 }
 
 String formatarNota(double nota) {
@@ -102,7 +110,11 @@ class InicioTab extends StatelessWidget {
                             title: Text(meta.nome),
                             subtitle: const Text('Vale 1 moeda de prata'),
                             onChanged: (_) {
-                              estado.alternarMeta(meta);
+                              final erro = estado.alternarMeta(meta);
+                              if (erro != null) {
+                                mostrarAviso(context, erro);
+                                return;
+                              }
                               mostrarAviso(
                                 context,
                                 meta.feita
@@ -125,9 +137,18 @@ class InicioTab extends StatelessWidget {
                     )
                   : ListTile(
                       title: Text(atual.nome),
-                      subtitle: Text(
-                          '${atual.obrigatorio ? "Obrigatório · ${atual.textoPrazo}" : "Opcional"}\n'
-                          '${atual.porcentagem}% · ${atual.modulosFeitos} de ${atual.modulos.length} módulos'),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                              '${atual.obrigatorio ? "Obrigatório · ${atual.textoPrazo}" : "Opcional"}\n'
+                              '${atual.porcentagem}% · ${atual.modulosFeitos} de ${atual.modulos.length} módulos'),
+                          const SizedBox(height: 6),
+                          LinearProgressIndicator(
+                            value: atual.modulosFeitos / atual.modulos.length,
+                          ),
+                        ],
+                      ),
                       isThreeLine: true,
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () {
@@ -310,7 +331,18 @@ class DetalhePage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(t.nome)),
+      appBar: AppBar(
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(t.tituloCurto),
+            if (t.subtituloNome != null)
+              Text(t.subtituloNome!,
+                  style: const TextStyle(
+                      fontSize: 12, fontWeight: FontWeight.normal)),
+          ],
+        ),
+      ),
       body: ListenableBuilder(
         listenable: estado,
         builder: (context, _) {
@@ -337,7 +369,8 @@ class DetalhePage extends StatelessWidget {
                       CheckboxListTile(
                         value: t.modulos[i].feito,
                         title: Text('${i + 1}. ${t.modulos[i].nome}'),
-                        onChanged: t.concluido
+                        // o último módulo é a avaliação final: não se marca à mão
+                        onChanged: (t.concluido || i == t.modulos.length - 1)
                             ? null
                             : (_) => estado.alternarModulo(t, i),
                       ),
@@ -346,7 +379,7 @@ class DetalhePage extends StatelessWidget {
               ),
               const SizedBox(height: 16),
               ElevatedButton(
-                onPressed: (t.concluido || !t.todosFeitos)
+                onPressed: (t.concluido || !t.liberaAvaliacao)
                     ? null
                     : () {
                         Navigator.push(
@@ -356,10 +389,10 @@ class DetalhePage extends StatelessWidget {
                       },
                 child: const Text('FAZER AVALIAÇÃO FINAL'),
               ),
-              if (!t.todosFeitos && !t.concluido)
+              if (!t.liberaAvaliacao && !t.concluido)
                 const Padding(
                   padding: EdgeInsets.only(top: 8),
-                  child: Text('Conclua todos os módulos para liberar a avaliação.',
+                  child: Text('Conclua os módulos anteriores para liberar a avaliação final.',
                       style: TextStyle(color: Colors.black54)),
                 ),
             ],
@@ -657,7 +690,7 @@ class PerfilPage extends StatelessWidget {
                 subtitle: Text(estado.usuario.cargo),
               ),
               const SizedBox(height: 8),
-              const Text('Estatísticas', style: tituloSecao),
+              const Text('Estatísticas do mês', style: tituloSecao),
               Card(
                 child: Column(
                   children: [
@@ -684,6 +717,9 @@ class PerfilPage extends StatelessWidget {
                           for (final t in concluidos)
                             ListTile(
                               title: Text(t.nome),
+                              subtitle: t.concluidoEm == null
+                                  ? null
+                                  : Text('Concluído em ${mesAno(t.concluidoEm!)}'),
                               trailing: TextButton(
                                 child: const Text('BAIXAR'),
                                 onPressed: () => mostrarAviso(
