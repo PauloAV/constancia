@@ -403,6 +403,37 @@ class AppState extends ChangeNotifier {
     return null;
   }
 
+  // devolve o texto do erro, ou null se deu certo
+  String? editarMeta(Meta meta, String nome, String frequencia) {
+    if (nome.trim().isEmpty) return 'Digite o nome da meta.';
+
+    final repetida = metas.any(
+        (m) => m != meta && m.nome.toLowerCase() == nome.toLowerCase());
+    if (repetida) return 'Já existe uma meta com esse nome.';
+
+    meta.nome = nome;
+    meta.frequencia = frequencia;
+    atualizarOfensiva();
+    mudou();
+    return null;
+  }
+
+  // excluir uma meta já feita tira a prata dela, como desmarcar
+  String? excluirMeta(Meta meta) {
+    if (meta.feita) {
+      if (prata < 1) {
+        return 'Você já usou a prata dessa meta em um resgate. Não dá para excluir agora.';
+      }
+      prata -= 1;
+      metasCumpridas -= 1;
+    }
+
+    metas.remove(meta);
+    atualizarOfensiva();
+    mudou();
+    return null;
+  }
+
   // ---------- treinamentos ----------
 
   // obrigatório com prazo mais perto primeiro, depois o de mais progresso
@@ -508,6 +539,47 @@ class AppState extends ChangeNotifier {
       inscrito: obrigatorio, // obrigatório já entra inscrito
     ));
     mudou();
+  }
+
+  void editarRecompensa(Recompensa r, String nome, int preco, bool ouro) {
+    // os pedidos já feitos acompanham o novo nome
+    for (final p in pedidos) {
+      if (p.recompensa == r.nome) p.recompensa = nome;
+    }
+    r.nome = nome;
+    r.preco = preco;
+    r.ouro = ouro;
+    mudou();
+  }
+
+  void excluirRecompensa(Recompensa r) {
+    recompensas.remove(r);
+    mudou();
+  }
+
+  void editarTreinamento(
+    Treinamento t, {
+    required String nome,
+    required int horas,
+    required bool obrigatorio,
+    DateTime? prazo,
+  }) {
+    t.nome = nome;
+    t.horas = horas;
+    t.obrigatorio = obrigatorio;
+    t.prazo = prazo;
+    if (obrigatorio) t.inscrito = true; // obrigatório já entra inscrito
+    mudou();
+  }
+
+  // treinamento concluído não pode sair: o certificado fica no perfil
+  String? excluirTreinamento(Treinamento t) {
+    if (t.concluido) {
+      return 'Este treinamento já foi concluído e o certificado fica no perfil. Não dá para excluir.';
+    }
+    treinamentos.remove(t);
+    mudou();
+    return null;
   }
 
   // ---------- login ----------

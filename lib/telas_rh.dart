@@ -203,6 +203,24 @@ class PedidosRhTab extends StatelessWidget {
   }
 }
 
+Future<void> excluirRecompensa(BuildContext context, Recompensa r) async {
+  final ok = await confirmar(context, 'Excluir recompensa?',
+      'A recompensa "${r.nome}" será removida da lista. Pedidos já feitos continuam valendo.');
+  if (!ok || !context.mounted) return;
+
+  estado.excluirRecompensa(r);
+  mostrarAviso(context, 'Recompensa excluída.');
+}
+
+Future<void> excluirTreinamento(BuildContext context, Treinamento t) async {
+  final ok = await confirmar(
+      context, 'Excluir treinamento?', 'O treinamento "${t.nome}" será removido.');
+  if (!ok || !context.mounted) return;
+
+  final erro = estado.excluirTreinamento(t);
+  mostrarAviso(context, erro ?? 'Treinamento excluído.');
+}
+
 class RecompensasRhTab extends StatelessWidget {
   const RecompensasRhTab({super.key});
 
@@ -231,6 +249,26 @@ class RecompensasRhTab extends StatelessWidget {
                     ListTile(
                       title: Text(r.nome),
                       subtitle: Text('${r.preco} ${r.ouro ? "ouro" : "prata"}'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        NovaRecompensaPage(recompensa: r)),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () => excluirRecompensa(context, r),
+                          ),
+                        ],
+                      ),
                     ),
                 ],
               ),
@@ -271,6 +309,26 @@ class TreinamentosRhTab extends StatelessWidget {
                       title: Text(t.nome),
                       subtitle: Text(
                           '${t.obrigatorio ? "Obrigatório" : "Opcional"} · ${t.horas} h · ${t.modulos.length} módulos'),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.edit),
+                            onPressed: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                    builder: (_) =>
+                                        NovoTreinamentoPage(treinamento: t)),
+                              );
+                            },
+                          ),
+                          IconButton(
+                            icon: const Icon(Icons.delete),
+                            onPressed: () => excluirTreinamento(context, t),
+                          ),
+                        ],
+                      ),
                     ),
                 ],
               ),
@@ -283,16 +341,27 @@ class TreinamentosRhTab extends StatelessWidget {
 }
 
 class NovaRecompensaPage extends StatefulWidget {
-  const NovaRecompensaPage({super.key});
+  final Recompensa? recompensa; // se vier preenchida, a tela edita
+
+  const NovaRecompensaPage({super.key, this.recompensa});
 
   @override
   State<NovaRecompensaPage> createState() => _NovaRecompensaPageState();
 }
 
 class _NovaRecompensaPageState extends State<NovaRecompensaPage> {
-  final nomeController = TextEditingController();
-  final precoController = TextEditingController();
-  String moeda = 'Prata';
+  late final TextEditingController nomeController;
+  late final TextEditingController precoController;
+  late String moeda;
+
+  @override
+  void initState() {
+    super.initState();
+    final r = widget.recompensa;
+    nomeController = TextEditingController(text: r?.nome ?? '');
+    precoController = TextEditingController(text: r == null ? '' : '${r.preco}');
+    moeda = (r != null && r.ouro) ? 'Ouro' : 'Prata';
+  }
 
   @override
   void dispose() {
@@ -314,14 +383,22 @@ class _NovaRecompensaPageState extends State<NovaRecompensaPage> {
       return;
     }
 
-    estado.cadastrarRecompensa(nome, preco, moeda == 'Ouro');
+    final existente = widget.recompensa;
+    if (existente == null) {
+      estado.cadastrarRecompensa(nome, preco, moeda == 'Ouro');
+    } else {
+      estado.editarRecompensa(existente, nome, preco, moeda == 'Ouro');
+    }
     Navigator.pop(context);
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Nova recompensa')),
+      appBar: AppBar(
+        title: Text(
+            widget.recompensa == null ? 'Nova recompensa' : 'Editar recompensa'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -363,18 +440,32 @@ class _NovaRecompensaPageState extends State<NovaRecompensaPage> {
 }
 
 class NovoTreinamentoPage extends StatefulWidget {
-  const NovoTreinamentoPage({super.key});
+  final Treinamento? treinamento; // se vier preenchido, a tela edita
+
+  const NovoTreinamentoPage({super.key, this.treinamento});
 
   @override
   State<NovoTreinamentoPage> createState() => _NovoTreinamentoPageState();
 }
 
 class _NovoTreinamentoPageState extends State<NovoTreinamentoPage> {
-  final nomeController = TextEditingController();
-  final horasController = TextEditingController();
-  final modulosController = TextEditingController();
-  bool obrigatorio = false;
+  late final TextEditingController nomeController;
+  late final TextEditingController horasController;
+  late final TextEditingController modulosController;
+  late bool obrigatorio;
   DateTime? prazo;
+
+  @override
+  void initState() {
+    super.initState();
+    final t = widget.treinamento;
+    nomeController = TextEditingController(text: t?.nome ?? '');
+    horasController = TextEditingController(text: t == null ? '' : '${t.horas}');
+    modulosController =
+        TextEditingController(text: t == null ? '' : '${t.modulos.length}');
+    obrigatorio = t?.obrigatorio ?? false;
+    prazo = t?.prazo;
+  }
 
   @override
   void dispose() {
@@ -410,6 +501,20 @@ class _NovoTreinamentoPageState extends State<NovoTreinamentoPage> {
       mostrarAviso(context, 'Digite a carga horária em horas.');
       return;
     }
+    // editando: os módulos não mudam, só os dados do treinamento
+    final existente = widget.treinamento;
+    if (existente != null) {
+      estado.editarTreinamento(
+        existente,
+        nome: nome,
+        horas: horas,
+        obrigatorio: obrigatorio,
+        prazo: prazo,
+      );
+      Navigator.pop(context);
+      return;
+    }
+
     if (qtdModulos == null || qtdModulos < 1 || qtdModulos > 20) {
       mostrarAviso(context, 'A quantidade de módulos deve ser de 1 a 20.');
       return;
@@ -435,7 +540,11 @@ class _NovoTreinamentoPageState extends State<NovoTreinamentoPage> {
     }
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Novo treinamento')),
+      appBar: AppBar(
+        title: Text(widget.treinamento == null
+            ? 'Novo treinamento'
+            : 'Editar treinamento'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -452,6 +561,7 @@ class _NovoTreinamentoPageState extends State<NovoTreinamentoPage> {
           const SizedBox(height: 8),
           TextField(
             controller: modulosController,
+            enabled: widget.treinamento == null, // ao editar, não muda
             keyboardType: TextInputType.number,
             decoration:
                 const InputDecoration(labelText: 'Quantidade de módulos'),
@@ -467,6 +577,11 @@ class _NovoTreinamentoPageState extends State<NovoTreinamentoPage> {
             onPressed: escolherPrazo,
             child: Text(textoPrazo),
           ),
+          if (prazo != null)
+            TextButton(
+              onPressed: () => setState(() => prazo = null),
+              child: const Text('REMOVER PRAZO'),
+            ),
           const SizedBox(height: 8),
           const Text(
             'A avaliação final usa as perguntas padrão do app.',

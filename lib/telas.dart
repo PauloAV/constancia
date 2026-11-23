@@ -10,6 +10,46 @@ void mostrarAviso(BuildContext context, String texto) {
   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(texto)));
 }
 
+// pergunta antes de excluir; devolve true se a pessoa confirmou
+Future<bool> confirmar(BuildContext context, String titulo, String texto) async {
+  final resposta = await showDialog<bool>(
+    context: context,
+    builder: (contexto) => AlertDialog(
+      title: Text(titulo),
+      content: Text(texto),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(contexto, false),
+          child: const Text('CANCELAR'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(contexto, true),
+          child: const Text('EXCLUIR'),
+        ),
+      ],
+    ),
+  );
+  return resposta ?? false;
+}
+
+// menu de três pontinhos de cada meta: editar ou excluir
+Future<void> acaoMeta(BuildContext context, Meta meta, String opcao) async {
+  if (opcao == 'editar') {
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (_) => NovaMetaPage(meta: meta)),
+    );
+    return;
+  }
+
+  final ok = await confirmar(
+      context, 'Excluir meta?', 'A meta "${meta.nome}" será removida.');
+  if (!ok || !context.mounted) return;
+
+  final erro = estado.excluirMeta(meta);
+  mostrarAviso(context, erro ?? 'Meta excluída.');
+}
+
 String mesAno(DateTime d) {
   const meses = [
     'jan', 'fev', 'mar', 'abr', 'mai', 'jun',
@@ -106,9 +146,17 @@ class InicioTab extends StatelessWidget {
                       children: [
                         for (final meta in metas)
                           CheckboxListTile(
+                            controlAffinity: ListTileControlAffinity.leading,
                             value: meta.feita,
                             title: Text(meta.nome),
                             subtitle: const Text('Vale 1 moeda de prata'),
+                            secondary: PopupMenuButton<String>(
+                              onSelected: (opcao) => acaoMeta(context, meta, opcao),
+                              itemBuilder: (_) => const [
+                                PopupMenuItem(value: 'editar', child: Text('Editar')),
+                                PopupMenuItem(value: 'excluir', child: Text('Excluir')),
+                              ],
+                            ),
                             onChanged: (_) {
                               final erro = estado.alternarMeta(meta);
                               if (erro != null) {
@@ -167,15 +215,24 @@ class InicioTab extends StatelessWidget {
 }
 
 class NovaMetaPage extends StatefulWidget {
-  const NovaMetaPage({super.key});
+  final Meta? meta; // se vier preenchida, a tela edita essa meta
+
+  const NovaMetaPage({super.key, this.meta});
 
   @override
   State<NovaMetaPage> createState() => _NovaMetaPageState();
 }
 
 class _NovaMetaPageState extends State<NovaMetaPage> {
-  final nomeController = TextEditingController();
-  String frequencia = 'Todo dia';
+  late final TextEditingController nomeController;
+  late String frequencia;
+
+  @override
+  void initState() {
+    super.initState();
+    nomeController = TextEditingController(text: widget.meta?.nome ?? '');
+    frequencia = widget.meta?.frequencia ?? 'Todo dia';
+  }
 
   @override
   void dispose() {
@@ -184,7 +241,10 @@ class _NovaMetaPageState extends State<NovaMetaPage> {
   }
 
   void salvar() {
-    final erro = estado.adicionarMeta(nomeController.text.trim(), frequencia);
+    final nome = nomeController.text.trim();
+    final erro = widget.meta == null
+        ? estado.adicionarMeta(nome, frequencia)
+        : estado.editarMeta(widget.meta!, nome, frequencia);
     if (erro != null) {
       mostrarAviso(context, erro);
       return;
@@ -195,7 +255,9 @@ class _NovaMetaPageState extends State<NovaMetaPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Nova meta')),
+      appBar: AppBar(
+        title: Text(widget.meta == null ? 'Nova meta' : 'Editar meta'),
+      ),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(

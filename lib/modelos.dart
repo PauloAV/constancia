@@ -22,8 +22,8 @@ class Usuario {
 }
 
 class Meta {
-  final String nome;
-  final String frequencia; // 'Todo dia', 'Dias úteis' ou 'Fim de semana'
+  String nome;
+  String frequencia; // 'Todo dia', 'Dias úteis' ou 'Fim de semana'
   bool feita;
 
   Meta(this.nome, {this.frequencia = 'Todo dia', this.feita = false});
@@ -70,10 +70,10 @@ class Pergunta {
 }
 
 class Treinamento {
-  final String nome;
-  final int horas;
-  final bool obrigatorio;
-  final DateTime? prazo;
+  String nome;
+  int horas;
+  bool obrigatorio;
+  DateTime? prazo;
   final List<Modulo> modulos;
   final List<Pergunta> perguntas;
   bool inscrito;
@@ -155,9 +155,9 @@ class Treinamento {
 }
 
 class Recompensa {
-  final String nome;
-  final int preco;
-  final bool ouro; // true = custa ouro, false = custa prata
+  String nome;
+  int preco;
+  bool ouro; // true = custa ouro, false = custa prata
 
   Recompensa(this.nome, this.preco, {this.ouro = false});
 
@@ -170,7 +170,7 @@ class Recompensa {
 
 // Pedido de resgate: o RH aceita ou recusa
 class Pedido {
-  final String recompensa;
+  String recompensa;
   final int preco;
   final bool ouro;
   String status; // 'pendente', 'aceito' ou 'recusado'
